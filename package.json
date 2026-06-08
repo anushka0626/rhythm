@@ -1,0 +1,26 @@
+{
+  "name": "rhythm",
+  "version": "1.0.0",
+  "description": "new app as an extension to Spotify, hoping it works",
+  "homepage": "https://github.com/anushka0626/rhythm#readme",
+  "bugs": {
+    "url": "https://github.com/anushka0626/rhythm/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/anushka0626/rhythm.git"
+  },
+  "license": "ISC",
+  "author": "anushka",
+  "type": "commonjs",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "devDependencies": {
+    "electron": "^42.3.3",
+    "electron-builder": "^26.15.2",
+    "nodemon": "^3.1.14"
+  }
+}
