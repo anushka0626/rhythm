@@ -1,5 +1,11 @@
 const { BrowserWindow, app, ipcMain } = require("electron");
 const path = require("path");
+const spotifyController = require("./spotify");   //spotify control functions imported
+
+
+require('dotenv').config({ path: path.join(__dirname, '.env') });
+const clientId = process.env.CLIENT_ID;
+const clientSecret = process.env.CLIENT_SECRET;
 
 let mainWindow;
 
@@ -24,8 +30,8 @@ app.whenReady().then(() => {
 
 // SPOTIFY AUTHENTICATION HERE
 ipcMain.on("spotify-login-trigger", () => {
-    const CLIENT_ID = "a043acd359be4dae8ddf4885e984d1f8";
-    const REDIRECT_URI = "http://127.0.0.1:3000/callback";
+    const CLIENT_ID = process.env.CLIENT_ID;
+    const REDIRECT_URI =process.env.REDIRECT_URI;
     const SCOPES = [
         "user-modify-playback-state",
         "user-read-playback-state",
@@ -49,9 +55,7 @@ ipcMain.on("spotify-login-trigger", () => {
 
     authWindow.loadURL(authUrl);
 
-    // FIX 1: Listen to webContents for "will-navigate"
     authWindow.webContents.on("will-navigate", (event, url) => {
-        // FIX 2: Corrected the function name to handleCallbackUrl
         handleCallbackUrl(url, authWindow);
     });
 
@@ -60,9 +64,7 @@ ipcMain.on("spotify-login-trigger", () => {
     });
 });
 
-// main.js
 
-// 1. Modified to be an async function so we can wait for the token response
 async function handleCallbackUrl(url, authWindow) {
     if (url.startsWith("http://127.0.0.1:3000/callback")) {
         const urlObj = new URL(url);
@@ -72,9 +74,7 @@ async function handleCallbackUrl(url, authWindow) {
             console.log("SUCCESS! Captured raw authentication code.");
             
             // Close the pop-up window immediately to clear the UI
-            authWindow.close();
-            
-            // Trigger the token swap exchange
+            authWindow.close();            
             await exchangeCodeForTokens(code);
         }
     }
@@ -82,19 +82,15 @@ async function handleCallbackUrl(url, authWindow) {
 
 // New helper function to execute the secure token handshake
 async function exchangeCodeForTokens(code) {
-    const CLIENT_ID = "a043acd359be4dae8ddf4885e984d1f8";
-    // Ensure there are no spaces or hidden characters around your secret string!
-    const CLIENT_SECRET = "c52350aeb8984ffaa323cccaf41210ca"; 
-    const REDIRECT_URI = "http://127.0.0.1:3000/callback";
+    const CLIENT_ID = process.env.CLIENT_ID;
+    const CLIENT_SECRET = process.env.CLIENT_SECRET;
+    const REDIRECT_URI = process.env.REDIRECT_URI;
 
     console.log("Exchanging authentication code for functional tokens...");
 
     try {
-        // Explicitly ensuring clean standard HTTPS destination
-        const tokenUrl = "https://accounts.spotify.com/api/token";
-        
+        const tokenUrl = "https://accounts.spotify.com/api/token";        
         const credentialsBase64 = Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString("base64");
-
         const response = await fetch(tokenUrl, {
             method: "POST",
             headers: {
@@ -111,8 +107,7 @@ async function exchangeCodeForTokens(code) {
         const data = await response.json();
 
         if (response.ok) {
-            console.log("=========================================");
-            console.log("SPOTIFY TOKENS ACQUIRED SUCCESSFULLY!");
+            console.log("\nSPOTIFY TOKENS ACQUIRED SUCCESSFULLY!");
             console.log("=========================================");
             mainWindow.webContents.send("spotify-connected", {
                 expiresIn: data.expires_in
@@ -132,26 +127,66 @@ async function exchangeCodeForTokens(code) {
     }
 }
 
-// Temporary Test Hook to verify Player Device handshake
+
 async function testSpotifyPlayback(accessToken) {
-    console.log("Querying for active target music devices...");
+    console.log("Initializing Phase 1 Hook Engine Simulation...");
+    
     try {
+        // 1. Fetch available devices to find your laptop's unique system ID
         const res = await fetch("https://api.spotify.com/v1/me/player/devices", {
             headers: { "Authorization": `Bearer ${accessToken}` }
         });
         const devicesData = await res.json();
-        
-        console.log("\n--- AVAILABLE AV DEVICES ---");
-        if(devicesData.devices && devicesData.devices.length > 0) {
-            devicesData.devices.forEach(d => {
-                console.log(`> Device Name: ${d.name} | Type: ${d.type} | Active: ${d.is_active}`);
-            });
-            console.log("----------------------------\n");
-            console.log("STEP 5 VALIDATION COMPLETE: You are clear to start building the Hook Engine queue controller logic!");
+    
+        let targetDeviceId = null;
+
+        if (devicesData.devices && devicesData.devices.length > 0) {
+            const activeDevice = devicesData.devices.find(d => d.is_active) || 
+                                 devicesData.devices.find(d => d.type === "Computer") || 
+                                 devicesData.devices[0];
+            
+            targetDeviceId = activeDevice.id;
+            console.log("FULL DEVICE:");
+            console.log(JSON.stringify(activeDevice, null, 2));
+            console.log(`Targeting Device Profile: ${activeDevice.name} (${activeDevice.type})`);
         } else {
-            console.log("No active device found. Open your Spotify Desktop app on your computer, play a random song for 2 seconds, and try logging in again!");
+            console.log("No player instances detected. Try playing a song manually first!");
+            return;
         }
+
+        const targetTrackUri = "spotify:track:3AzjcOeAmA57TIOr9zF1ZW"; // physical
+        const hookStartTimeMs = 60000; // seek to 1 min
+
+        console.log("Attempting to wake up and hijack the playback pipeline...");
+        
+        // 2. Try playing the track
+        let playSuccess = await spotifyController.playTrack(accessToken, targetTrackUri, targetDeviceId, hookStartTimeMs);
+        
+        if (!playSuccess) {
+            console.log("Spotify session is ghosting. Sending a force-wake nudge in 2 seconds...");
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
+            console.log(" Retrying playback initiation...");
+            playSuccess = await spotifyController.playTrack(accessToken, targetTrackUri, targetDeviceId);
+        }
+        
+        if (playSuccess) {
+            console.log("Waiting for track to buffer...");
+            setTimeout(async () => {
+                await spotifyController.seekToPosition(
+                    accessToken,
+                    hookStartTimeMs,
+                    targetDeviceId
+                );
+
+                console.log("Hook playback started.");
+            }, 750);
+            
+        } else {
+            console.log("Playback initiation failed after retry. Try pausing and unpausing your desktop app manually once, then run npm start again!");
+        }
+
     } catch (err) {
-        console.error("Device verification poll failed:", err);
+        console.error("Error inside your test runner loop:", err);
     }
 }
