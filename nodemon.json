@@ -1,0 +1,6 @@
+{
+  "watch": ["src/main", "src/preload"],
+  "ignore": ["node_modules", "dist"],
+  "ext": "js,json,html,css",
+  "exec": "electron ."
+}

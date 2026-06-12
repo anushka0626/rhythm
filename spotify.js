@@ -42,13 +42,10 @@ async function playTrack(accessToken, trackUri, deviceId = null,startPositionsMs
 
 async function seekToPosition(accessToken, positionMs,deviceId) {
     try {
-        const seekUrl =
-  `https://api.spotify.com/v1/me/player/seek?position_ms=${positionMs}&device_id=${deviceId}`;
+        const seekUrl=`https://api.spotify.com/v1/me/player/seek?position_ms=${positionMs}&device_id=${deviceId}`;
         const response = await fetch(seekUrl, {
             method: "PUT",
-            headers: {
-                "Authorization": `Bearer ${accessToken}`
-            }
+            headers: {"Authorization": `Bearer ${accessToken}`}
         });
         console.log("Seek Status:", response.status);
         const responseText = await response.text();
@@ -67,8 +64,24 @@ async function seekToPosition(accessToken, positionMs,deviceId) {
     }
 }
 
+async function getPlaylistTracks(accessToken, playlistId){
+    const url = `https://api.spotify.com/v1/playlists/${playlistId}/items`;
+    console.log("Playlist ID:", playlistId);
+    console.log("Token exists:", !!accessToken);
+    const response= await fetch(url,{
+        headers:{
+            Authorization: `Bearer ${accessToken}`
+        }
+    });
+    console.log("Playlist status:", response.status);
+    const text=await response.text();
+    console.log("playlist response:", text);
+    if(!text){return null;}
+    return JSON.parse(text);
+}
 // Export both automation handlers so main.js can use them
 module.exports = {
     playTrack,
-    seekToPosition
+    seekToPosition,
+    getPlaylistTracks
 };

@@ -15,6 +15,7 @@ function createWindow() {
         width: 1200,
         height: 800,
         webPreferences: {
+            partition: 'trusted'+ Date.now(),
             nodeIntegration: false,
             contextIsolation: true,
             preload: path.join(__dirname, "preload.js")
@@ -36,7 +37,8 @@ ipcMain.on("spotify-login-trigger", () => {
         "user-modify-playback-state",
         "user-read-playback-state",
         "user-read-currently-playing",
-        "playlist-read-private"
+        "playlist-read-private",
+        "playlist-read-collaborative"
     ].join(" ");
 
     const authUrl = `https://accounts.spotify.com/authorize?` + 
@@ -64,6 +66,41 @@ ipcMain.on("spotify-login-trigger", () => {
     });
 });
 
+ipcMain.handle("fetch-playlist", async (event, playlistId) => {
+    try {
+        const tracks =
+            await spotifyController.getPlaylistTracks( global.spotifyAccessToken,playlistId);
+        return tracks;
+
+    } catch (err) {
+        console.error(err);
+        return null;
+    }
+});
+
+ipcMain.handle("play-hook",
+    async (event, trackUri,hookTime) => {
+        console.log( "Play hook requested:",trackUri);
+        //console.log("Track: ",trackUri);
+        //onsole.log("hook:", hookTime);
+        const res= await fetch("https://api.spotify.com/v1/me/player/devices",{
+            headers: {
+                Authorization: `Bearer ${global.spotifyAccessToken}`
+            }
+        });
+        const devicesData= await res.json();
+        if(!devicesData.devices.length ){
+            console.log("no devices found");
+            return;  
+        }
+        const device= devicesData.devices.find(d=>d.is_active) ||devicesData.devices[0];
+        console.log("using device: ",device.name);
+        await spotifyController.playTrack(global.spotifyAccessToken,trackUri,device.id);
+        setTimeout(async()=>{
+            await spotifyController.seekToPosition(global.spotifyAccessToken,hookTime,device.id);
+        },750);
+    }
+); 
 
 async function handleCallbackUrl(url, authWindow) {
     if (url.startsWith("http://127.0.0.1:3000/callback")) {
@@ -107,30 +144,40 @@ async function exchangeCodeForTokens(code) {
         const data = await response.json();
 
         if (response.ok) {
-            console.log("\nSPOTIFY TOKENS ACQUIRED SUCCESSFULLY!");
-            console.log("=========================================");
+            console.log("\nSPOTIFY TOKENS ACQUIRED SUCCESSFULLY!\n------------------");
             mainWindow.webContents.send("spotify-connected", {
                 expiresIn: data.expires_in
             });
-            setTimeout(() => {
+            global.spotifyAccessToken = data.access_token;
+           
+           /* const meResponse = await fetch(
+                    "https://api.spotify.com/v1/me",
+                    {
+                        headers: {
+                            Authorization: `Bearer ${data.access_token}`
+                        }
+                    }
+                );
+
+                console.log("ME STATUS:", meResponse.status);
+                console.log(await meResponse.text());*/
+            /*setTimeout(() => {
                 testSpotifyPlayback(data.access_token);
-            }, 1000);
+            }, 1000);*/
         } else {
             console.error("Spotify API Refused Token Swap:", data);
         }
 
     } catch (error) {
         console.error("Network Error during Token Exchange Execution:", error);
-        
         console.log("\nQuick Troubleshooting Tip:");
         console.log("If you are using a college WiFi network, a VPN, or a strict third-party Antivirus/Firewall, they might be intercepting SSL requests. Try switching to a mobile hotspot to verify if it's a network filter block!");
     }
 }
 
 
-async function testSpotifyPlayback(accessToken) {
+/*async function testSpotifyPlayback(accessToken) {
     console.log("Initializing Phase 1 Hook Engine Simulation...");
-    
     try {
         // 1. Fetch available devices to find your laptop's unique system ID
         const res = await fetch("https://api.spotify.com/v1/me/player/devices", {
@@ -189,4 +236,4 @@ async function testSpotifyPlayback(accessToken) {
     } catch (err) {
         console.error("Error inside your test runner loop:", err);
     }
-}
+}*/
