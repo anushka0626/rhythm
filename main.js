@@ -100,7 +100,7 @@ ipcMain.handle("play-hook",
             await spotifyController.seekToPosition(global.spotifyAccessToken,hookTime,device.id);
         },750);
     }
-); 
+);  
 
 async function handleCallbackUrl(url, authWindow) {
     if (url.startsWith("http://127.0.0.1:3000/callback")) {

@@ -13,7 +13,7 @@ if (saved) {
 }
 
 button.addEventListener("click", () => {
-    status.textContent = "Opening Spotify Auth Window...";
+    status.innerHTML = `<span class="dot" style="background: #ebb11a;"></span> Communicating with API context...`;
     window.electronAPI.loginWithSpotify();
 });
 
@@ -108,45 +108,28 @@ function renderQueue() {
 }
 
 
-document
-    .querySelector("#startSessionBtn")
-    .addEventListener(
-        "click",async () => {
-            console.log("Starting session...");
-
-            for (const track of sessionQueue) {
-
-                console.log(`Playing ${track.name}`);
-
-                await window.electronAPI.playHook(
-                    track.uri,
-                    track.hookStart
-                );
-
-                const duration =track.hookEnd -track.hookStart;
-
-                console.log(`Waiting ${duration / 1000} seconds`);
-
-                await new Promise(
-                    resolve =>
-                        setTimeout(
-                            resolve,
-                            duration
-                        )
-                );
-            }
-
-            console.log(
-                "Session complete."
+document.querySelector("#startSessionBtn").addEventListener( "click",async () => {
+    console.log("Starting session...");
+    for (const track of sessionQueue) {
+        console.log(`Playing ${track.name}`);
+            await window.electronAPI.playHook(track.uri,track.hookStart);
+            const duration =track.hookEnd -track.hookStart;
+            console.log(`Waiting ${duration / 1000} seconds`);
+            await new Promise(resolve =>
+                setTimeout(resolve,duration)
             );
+        }
+            console.log("Session complete.");
         }
     );
 
 
 window.electronAPI.onSpotifyConnected((data) => {
     status.innerHTML = `
-        <span style="color: #1DB954; font-weight: bold;">â£ Connected to Spotify!</span>
-        <br><small style="color: #888;">Session expires in ${data.expiresIn}s</small>
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+            <div><span class="dot pulse-green"></span> Connected to Engine Instance</div>
+            <small style="color: #888; font-size: 0.75rem; padding-left: 20px;">Session active</small>
+        </div>
     `;
-    button.style.display = "none"; // Hide login button once authorized
+    button.style.display = "none";
 });
