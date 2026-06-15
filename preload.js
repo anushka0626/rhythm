@@ -15,5 +15,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
         "play-hook",
         trackUri,
         hookTime
-    )
+    ),
+    loadStore: () => ipcRenderer.invoke("store-load"),
+    saveStore: (storePatch) => ipcRenderer.invoke("store-save", storePatch),
+    exportSession: (sessionPayload) => ipcRenderer.invoke("export-session", sessionPayload),
+    importSession: () => ipcRenderer.invoke("import-session")
 });

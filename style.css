@@ -32,7 +32,7 @@ body {
     border-bottom: 1px solid var(--border-color);
 }
 
-.logo { font-size: 1.3rem; font-weight: 800; letter-spacing: -0.5px; }
+.logo { font-size: 1.3rem; font-weight: 800; letter-spacing: 0; }
 .badge { background: #282828; font-size: 0.75rem; padding: 4px 12px; border-radius: 20px; color: var(--text-muted); border: 1px solid #333; }
 
 .app-container {
@@ -46,7 +46,7 @@ body {
 
 .card {
     background: var(--bg-surface);
-    border-radius: 10px;
+    border-radius: 8px;
     padding: 20px;
     border: 1px solid var(--border-color);
     display: flex;
@@ -76,9 +76,25 @@ input[type="text"] {
     transition: border-color 0.2s;
 }
 
-input[type="text"]:focus {
+input[type="text"]:focus,
+input[type="number"]:focus,
+select:focus {
     border-color: #535353;
     outline: none;
+}
+
+input[type="number"],
+select {
+    background: #242424;
+    border: 1px solid transparent;
+    padding: 9px 10px;
+    border-radius: 6px;
+    color: white;
+    font-size: 0.82rem;
+}
+
+select {
+    min-width: 150px;
 }
 
 /* Scrollable Container Alignment fixes */
@@ -99,6 +115,7 @@ input[type="text"]:focus {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 10px;
     font-size: 0.85rem;
 }
 
@@ -133,6 +150,20 @@ button {
 }
 .btn-primary:hover { background: #e0e0e0; }
 
+.btn-secondary {
+    background: #242424;
+    color: white;
+    border: 1px solid #333;
+    padding: 9px 12px;
+    border-radius: 6px;
+}
+.btn-secondary:hover { background: #303030; }
+.btn-secondary.danger:hover,
+.btn-danger:hover {
+    background: #4a2024;
+    color: #ffb8c0;
+}
+
 .btn-session {
     background: var(--spotify-green);
     color: white;
@@ -157,6 +188,91 @@ button {
 .btn-action:hover { background: #333; }
 .btn-add { background: #242424; color: var(--spotify-green); border: 1px solid #333; }
 .btn-add:hover { background: var(--spotify-green); color: white; }
+.btn-action:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+}
+
+.pane-heading {
+    display: flex;
+    justify-content: space-between;
+    gap: 14px;
+    align-items: flex-start;
+}
+
+.pane-heading p {
+    margin-top: 0;
+}
+
+.session-status {
+    min-width: 130px;
+    max-width: 190px;
+    background: var(--bg-base);
+    color: var(--text-muted);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 0.75rem;
+    line-height: 1.3;
+    text-align: right;
+}
+
+.session-status[data-tone="error"] {
+    color: #ffb8c0;
+    border-color: #5c262d;
+}
+
+.session-status[data-tone="warning"] {
+    color: #ffd78a;
+    border-color: #614a19;
+}
+
+.session-controls {
+    display: grid;
+    grid-template-columns: minmax(160px, 1fr) auto minmax(145px, auto) auto auto auto auto;
+    gap: 8px;
+    margin: 6px 0 12px;
+    align-items: stretch;
+}
+
+.session-controls input[type="text"] {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.track-row,
+.queue-row {
+    min-height: 40px;
+}
+
+.queue-row {
+    outline: none;
+}
+
+.queue-row.selected,
+.queue-row:focus {
+    background: #202820;
+    box-shadow: inset 3px 0 0 var(--spotify-green);
+}
+
+.track-title {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.hook-input {
+    width: 72px;
+    box-sizing: border-box;
+}
+
+.empty-state {
+    color: var(--text-muted);
+    justify-content: center !important;
+    min-height: 46px;
+}
 
 /* Status Box elements */
 .status-box {
@@ -179,3 +295,44 @@ button {
 ::-webkit-scrollbar-track { background: var(--bg-base); }
 ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: #444; }
+
+@media (max-width: 980px) {
+    .app-container {
+        grid-template-columns: 1fr;
+        height: auto;
+        min-height: calc(100vh - 85px);
+    }
+
+    .app-shell {
+        height: auto;
+        min-height: 100vh;
+    }
+
+    .card {
+        min-height: 520px;
+    }
+
+    .session-controls {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .pane-heading {
+        flex-direction: column;
+    }
+
+    .session-status {
+        max-width: none;
+        text-align: left;
+    }
+
+    .track-row,
+    .queue-row {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .track-actions {
+        flex-wrap: wrap;
+        width: 100%;
+    }
+}

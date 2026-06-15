@@ -2,14 +2,14 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>VibeCheck — Phase 1 Orchestrator</title>
+    <title>VibeCheck - Phase 1 Orchestrator</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="app-shell">
         <header class="app-header">
-            <span class="logo">🎧 VibeCheck</span>
-            <div class="badge">Phase 1 Stable</div>
+            <span class="logo">VibeCheck</span>
+            <div class="badge">Session Studio</div>
         </header>
 
         <main class="app-container">
@@ -32,19 +32,34 @@
                 </div>
 
                 <h3>Available Tracks</h3>
-                <ul id="songList" class="scrollable-list">
-                    </ul>
+                <ul id="songList" class="scrollable-list"></ul>
             </section>
 
             <section class="card engine-pane">
-                <h2>Active Session Queue</h2>
-                <p>Tracks queued up for continuous DJ-style playback execution.</p>
-                
-                <ul id="queueList" class="scrollable-list queue-list">
-                    </ul>
+                <div class="pane-heading">
+                    <div>
+                        <h2>Active Session Queue</h2>
+                        <p>Tracks queued up for continuous playback execution.</p>
+                    </div>
+                    <div id="sessionStatus" class="session-status">Session data ready.</div>
+                </div>
 
-                <button id="startSessionBtn" class="btn-session">
-                    🚀 Launch Continuous Session Loop
+                <div class="session-controls">
+                    <input type="text" id="sessionNameInput" placeholder="Session name" />
+                    <button id="saveSessionBtn" class="btn-secondary" title="Save session (Ctrl+S)">Save</button>
+                    <select id="savedSessionSelect" title="Saved sessions">
+                        <option value="">Saved sessions</option>
+                    </select>
+                    <button id="loadSessionBtn" class="btn-secondary" title="Load selected session">Load</button>
+                    <button id="deleteSessionBtn" class="btn-secondary danger" title="Delete selected session">Delete</button>
+                    <button id="exportSessionBtn" class="btn-secondary" title="Export session (Ctrl+E)">Export</button>
+                    <button id="importSessionBtn" class="btn-secondary" title="Import session (Ctrl+O)">Import</button>
+                </div>
+
+                <ul id="queueList" class="scrollable-list queue-list"></ul>
+
+                <button id="startSessionBtn" class="btn-session" title="Start session (Ctrl+Enter)">
+                    Start Session
                 </button>
             </section>
         </main>

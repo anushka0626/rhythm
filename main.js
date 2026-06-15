@@ -1,4 +1,5 @@
-const { BrowserWindow, app, ipcMain } = require("electron");
+const { BrowserWindow, app, ipcMain, dialog } = require("electron");
+const fs = require("fs");
 const path = require("path");
 const spotifyController = require("./spotify");   //spotify control functions imported
 
@@ -8,6 +9,178 @@ const clientId = process.env.CLIENT_ID;
 const clientSecret = process.env.CLIENT_SECRET;
 
 let mainWindow;
+const STORE_VERSION = 1;
+const DEFAULT_HOOK_LENGTH = 30 * 1000;
+
+function createEmptyStore() {
+    return {
+        version: STORE_VERSION,
+        hookDb: {},
+        sessions: {},
+        activeSession: {
+            name: "Untitled Session",
+            queue: [],
+            updatedAt: null
+        }
+    };
+}
+
+function getStorePath() {
+    return path.join(app.getPath("userData"), "rhythm-store.json");
+}
+
+function toNumber(value, fallback = 0) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function normalizeHookEnd(value, start) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed > start
+        ? parsed
+        : start + DEFAULT_HOOK_LENGTH;
+}
+
+function normalizeHookDb(rawHookDb = {}) {
+    const hookDb = {};
+
+    Object.entries(rawHookDb || {}).forEach(([uri, hook]) => {
+        if (!uri) {
+            return;
+        }
+
+        if (typeof hook === "number") {
+            hookDb[uri] = {
+                start: toNumber(hook),
+                end: toNumber(hook) + DEFAULT_HOOK_LENGTH
+            };
+            return;
+        }
+
+        const start = toNumber(hook && hook.start);
+        hookDb[uri] = {
+            start,
+            end: normalizeHookEnd(hook && hook.end, start)
+        };
+    });
+
+    return hookDb;
+}
+
+function normalizeQueue(queue = []) {
+    if (!Array.isArray(queue)) {
+        return [];
+    }
+
+    return queue
+        .filter((track) => track && track.uri)
+        .map((track) => {
+            const hookStart = toNumber(track.hookStart);
+
+            return {
+                uri: String(track.uri),
+                name: String(track.name || "Untitled Track"),
+                artist: track.artist ? String(track.artist) : "",
+                hookStart,
+                hookEnd: normalizeHookEnd(track.hookEnd, hookStart)
+            };
+        });
+}
+
+function normalizeSession(rawSession = {}) {
+    rawSession = rawSession || {};
+
+    const now = new Date().toISOString();
+    const name = String(rawSession.name || "Untitled Session").trim() || "Untitled Session";
+
+    return {
+        name,
+        queue: normalizeQueue(rawSession.queue || rawSession.sessionQueue),
+        createdAt: rawSession.createdAt || now,
+        updatedAt: rawSession.updatedAt || now
+    };
+}
+
+function normalizeSessions(rawSessions = {}) {
+    const sessions = {};
+
+    Object.entries(rawSessions || {}).forEach(([key, rawSession]) => {
+        const session = normalizeSession({
+            name: rawSession && rawSession.name ? rawSession.name : key,
+            ...rawSession
+        });
+        sessions[session.name] = session;
+    });
+
+    return sessions;
+}
+
+function normalizeStore(rawStore = {}) {
+    const emptyStore = createEmptyStore();
+    const activeSession = normalizeSession(rawStore.activeSession || emptyStore.activeSession);
+
+    return {
+        version: STORE_VERSION,
+        hookDb: normalizeHookDb(rawStore.hookDb),
+        sessions: normalizeSessions(rawStore.sessions),
+        activeSession
+    };
+}
+
+function getImportSessionPayload(rawPayload = {}) {
+    if (rawPayload.session) {
+        return rawPayload.session;
+    }
+
+    if (rawPayload.activeSession) {
+        return rawPayload.activeSession;
+    }
+
+    if (rawPayload.queue || rawPayload.sessionQueue) {
+        return rawPayload;
+    }
+
+    if (rawPayload.sessions && typeof rawPayload.sessions === "object") {
+        const firstSession = Object.values(rawPayload.sessions)[0];
+        if (firstSession) {
+            return firstSession;
+        }
+    }
+
+    return null;
+}
+
+function safeFileName(value) {
+    return String(value || "rhythm-session")
+        .replace(/[<>:"/\\|?*\x00-\x1F]/g, "-")
+        .replace(/\s+/g, "-")
+        .replace(/-+/g, "-")
+        .replace(/^-|-$/g, "")
+        .slice(0, 80) || "rhythm-session";
+}
+
+async function readStore() {
+    try {
+        const raw = await fs.promises.readFile(getStorePath(), "utf8");
+        return normalizeStore(JSON.parse(raw));
+    } catch (error) {
+        if (error.code !== "ENOENT") {
+            console.error("Could not read Rhythm store:", error);
+        }
+
+        return createEmptyStore();
+    }
+}
+
+async function writeStore(store) {
+    const normalizedStore = normalizeStore(store);
+    const storePath = getStorePath();
+
+    await fs.promises.mkdir(path.dirname(storePath), { recursive: true });
+    await fs.promises.writeFile(storePath, JSON.stringify(normalizedStore, null, 2), "utf8");
+
+    return normalizedStore;
+}
 
 function createWindow() {
     // Assigned to the global variable so we can access it elsewhere if needed
@@ -27,6 +200,80 @@ function createWindow() {
 
 app.whenReady().then(() => {
     createWindow();
+});
+
+ipcMain.handle("store-load", async () => {
+    return readStore();
+});
+
+ipcMain.handle("store-save", async (event, storePatch) => {
+    const currentStore = await readStore();
+
+    return writeStore({
+        ...currentStore,
+        ...(storePatch || {})
+    });
+});
+
+ipcMain.handle("export-session", async (event, payload) => {
+    const session = normalizeSession((payload && (payload.session || payload.activeSession)) || payload);
+    const hookDb = normalizeHookDb(payload && payload.hookDb);
+    const exportPayload = {
+        version: STORE_VERSION,
+        exportedAt: new Date().toISOString(),
+        session,
+        hookDb
+    };
+
+    const result = await dialog.showSaveDialog(mainWindow, {
+        title: "Export Rhythm Session",
+        defaultPath: `${safeFileName(session.name)}.rhythm-session.json`,
+        filters: [
+            { name: "Rhythm Session", extensions: ["json"] },
+            { name: "All Files", extensions: ["*"] }
+        ]
+    });
+
+    if (result.canceled || !result.filePath) {
+        return { canceled: true };
+    }
+
+    await fs.promises.writeFile(result.filePath, JSON.stringify(exportPayload, null, 2), "utf8");
+
+    return {
+        canceled: false,
+        filePath: result.filePath
+    };
+});
+
+ipcMain.handle("import-session", async () => {
+    const result = await dialog.showOpenDialog(mainWindow, {
+        title: "Import Rhythm Session",
+        properties: ["openFile"],
+        filters: [
+            { name: "Rhythm Session", extensions: ["json"] },
+            { name: "All Files", extensions: ["*"] }
+        ]
+    });
+
+    if (result.canceled || !result.filePaths.length) {
+        return { canceled: true };
+    }
+
+    const raw = await fs.promises.readFile(result.filePaths[0], "utf8");
+    const parsed = JSON.parse(raw);
+    const importedSession = getImportSessionPayload(parsed);
+
+    if (!importedSession) {
+        throw new Error("The selected file does not contain a Rhythm session.");
+    }
+
+    return {
+        canceled: false,
+        filePath: result.filePaths[0],
+        session: normalizeSession(importedSession),
+        hookDb: normalizeHookDb(parsed.hookDb)
+    };
 });
 
 // SPOTIFY AUTHENTICATION HERE
@@ -109,9 +356,9 @@ async function handleCallbackUrl(url, authWindow) {
 
         if (code) {
             console.log("SUCCESS! Captured raw authentication code.");
-            
+
             // Close the pop-up window immediately to clear the UI
-            authWindow.close();            
+            authWindow.close();
             await exchangeCodeForTokens(code);
         }
     }
@@ -174,7 +421,7 @@ async function exchangeCodeForTokens(code) {
         console.log("If you are using a college WiFi network, a VPN, or a strict third-party Antivirus/Firewall, they might be intercepting SSL requests. Try switching to a mobile hotspot to verify if it's a network filter block!");
     }
 }
-
+  
 
 /*async function testSpotifyPlayback(accessToken) {
     console.log("Initializing Phase 1 Hook Engine Simulation...");
