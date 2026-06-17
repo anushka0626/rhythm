@@ -78,11 +78,24 @@ function normalizeQueue(queue = []) {
             const hookStart = toNumber(track.hookStart);
 
             return {
+                id: track.id ? String(track.id) : "",
                 uri: String(track.uri),
                 name: String(track.name || "Untitled Track"),
                 artist: track.artist ? String(track.artist) : "",
+                artistIds: Array.isArray(track.artistIds) ? track.artistIds.map(String) : [],
+                genres: Array.isArray(track.genres) ? track.genres.map(String) : [],
+                albumName: track.albumName ? String(track.albumName) : "",
+                releaseDate: track.releaseDate ? String(track.releaseDate) : "",
+                durationMs: toNumber(track.durationMs),
+                popularity: toNumber(track.popularity),
                 hookStart,
-                hookEnd: normalizeHookEnd(track.hookEnd, hookStart)
+                hookEnd: normalizeHookEnd(track.hookEnd, hookStart),
+                analysis: track.analysis && typeof track.analysis === "object"
+                    ? track.analysis
+                    : null,
+                transition: track.transition && typeof track.transition === "object"
+                    ? track.transition
+                    : null
             };
         });
 }
@@ -95,6 +108,7 @@ function normalizeSession(rawSession = {}) {
 
     return {
         name,
+        moodKey: rawSession.moodKey ? String(rawSession.moodKey) : "balanced",
         queue: normalizeQueue(rawSession.queue || rawSession.sessionQueue),
         createdAt: rawSession.createdAt || now,
         updatedAt: rawSession.updatedAt || now
@@ -180,6 +194,32 @@ async function writeStore(store) {
     await fs.promises.writeFile(storePath, JSON.stringify(normalizedStore, null, 2), "utf8");
 
     return normalizedStore;
+}
+
+function delay(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function getPlaybackDevice(preferredDeviceId = null) {
+    if (!global.spotifyAccessToken) {
+        throw new Error("Spotify is not connected.");
+    }
+
+    const res = await fetch("https://api.spotify.com/v1/me/player/devices", {
+        headers: {
+            Authorization: `Bearer ${global.spotifyAccessToken}`
+        }
+    });
+    const devicesData = await res.json();
+    const devices = Array.isArray(devicesData.devices) ? devicesData.devices : [];
+
+    if (!devices.length) {
+        return null;
+    }
+
+    return devices.find((device) => device.id === preferredDeviceId)
+        || devices.find((device) => device.is_active)
+        || devices[0];
 }
 
 function createWindow() {
@@ -325,29 +365,126 @@ ipcMain.handle("fetch-playlist", async (event, playlistId) => {
     }
 });
 
-ipcMain.handle("play-hook",
-    async (event, trackUri,hookTime) => {
-        console.log( "Play hook requested:",trackUri);
-        //console.log("Track: ",trackUri);
-        //onsole.log("hook:", hookTime);
-        const res= await fetch("https://api.spotify.com/v1/me/player/devices",{
-            headers: {
-                Authorization: `Bearer ${global.spotifyAccessToken}`
-            }
-        });
-        const devicesData= await res.json();
-        if(!devicesData.devices.length ){
-            console.log("no devices found");
-            return;  
-        }
-        const device= devicesData.devices.find(d=>d.is_active) ||devicesData.devices[0];
-        console.log("using device: ",device.name);
-        await spotifyController.playTrack(global.spotifyAccessToken,trackUri,device.id);
-        setTimeout(async()=>{
-            await spotifyController.seekToPosition(global.spotifyAccessToken,hookTime,device.id);
-        },750);
+ipcMain.handle("analyze-tracks", async (event, payload) => {
+    const trackIds = Array.isArray(payload)
+        ? payload
+        : payload && Array.isArray(payload.trackIds)
+            ? payload.trackIds
+            : [];
+    const artistIds = payload && Array.isArray(payload.artistIds) ? payload.artistIds : [];
+    let features = [];
+    let artists = [];
+    let featureError = null;
+    let artistError = null;
+
+    try {
+        features = await spotifyController.getAudioFeatures(global.spotifyAccessToken, trackIds);
+    } catch (error) {
+        featureError = error;
+        console.error("Audio feature analysis unavailable:", error);
     }
-);  
+
+    try {
+        artists = await spotifyController.getArtists(global.spotifyAccessToken, artistIds);
+    } catch (error) {
+        artistError = error;
+        console.error("Artist metadata analysis unavailable:", error);
+    }
+
+    return {
+        ok: !featureError || !artistError,
+        features,
+        artists,
+        featureError: featureError
+            ? { status: featureError.status || null, message: featureError.message }
+            : null,
+        artistError: artistError
+            ? { status: artistError.status || null, message: artistError.message }
+            : null
+    };
+});
+
+ipcMain.handle("play-hook",
+    async (event, trackUri, hookTime, preferredDeviceId = null) => {
+        try {
+            const hookPositionMs = Math.max(0, toNumber(hookTime));
+            console.log("Play hook requested:", trackUri, hookPositionMs);
+
+            const device = await getPlaybackDevice(preferredDeviceId);
+
+            if (!device) {
+                console.log("no devices found");
+                return {
+                    ok: false,
+                    error: "No Spotify devices found."
+                };
+            }
+
+            console.log("using device:", device.name);
+
+            const playSuccess = await spotifyController.playTrack(
+                global.spotifyAccessToken,
+                trackUri,
+                device.id,
+                hookPositionMs
+            );
+
+            if (!playSuccess) {
+                return {
+                    ok: false,
+                    error: "Spotify rejected playback."
+                };
+            }
+
+            await delay(500);
+
+            const seekSuccess = await spotifyController.seekToPosition(
+                global.spotifyAccessToken,
+                hookPositionMs,
+                device.id
+            );
+
+            return {
+                ok: seekSuccess,
+                deviceId: device.id,
+                deviceName: device.name
+            };
+        } catch (error) {
+            console.error("Could not play hook:", error);
+            return {
+                ok: false,
+                error: error.message || "Could not play hook."
+            };
+        }
+    }
+);
+
+ipcMain.handle("pause-playback", async (event, preferredDeviceId = null) => {
+    try {
+        const device = await getPlaybackDevice(preferredDeviceId);
+
+        if (!device) {
+            return {
+                ok: false,
+                error: "No Spotify devices found."
+            };
+        }
+
+        const paused = await spotifyController.pausePlayback(global.spotifyAccessToken, device.id);
+
+        return {
+            ok: paused,
+            deviceId: device.id,
+            deviceName: device.name
+        };
+    } catch (error) {
+        console.error("Could not pause playback:", error);
+        return {
+            ok: false,
+            error: error.message || "Could not pause playback."
+        };
+    }
+});
 
 async function handleCallbackUrl(url, authWindow) {
     if (url.startsWith("http://127.0.0.1:3000/callback")) {

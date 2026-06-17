@@ -10,12 +10,14 @@ contextBridge.exposeInMainWorld("electronAPI", {
         "fetch-playlist",
         playlistId
     ),
+    analyzeTracks: (trackIds) => ipcRenderer.invoke("analyze-tracks", trackIds),
     playHook: (trackUri,hookTime) =>
     ipcRenderer.invoke(
         "play-hook",
         trackUri,
         hookTime
     ),
+    pausePlayback: () => ipcRenderer.invoke("pause-playback"),
     loadStore: () => ipcRenderer.invoke("store-load"),
     saveStore: (storePatch) => ipcRenderer.invoke("store-save", storePatch),
     exportSession: (sessionPayload) => ipcRenderer.invoke("export-session", sessionPayload),

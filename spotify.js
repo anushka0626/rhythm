@@ -1,8 +1,8 @@
 // spotify.js
-async function playTrack(accessToken, trackUri, deviceId = null,startPositionsMs=0) {
+async function playTrack(accessToken, trackUri, deviceId = null, startPositionMs = 0) {
     try {
         let playUrl = "https://api.spotify.com/v1/me/player/play";
-        
+
         if (deviceId) {
             playUrl += `?device_id=${deviceId}`;
         }
@@ -14,74 +14,165 @@ async function playTrack(accessToken, trackUri, deviceId = null,startPositionsMs
                 "Content-Type": "application/json"
             },
             body: JSON.stringify({
-                //device_ids: [deviceId],
-                //play:false,
                 uris: [trackUri],
-                position_ms: startPositionsMs
+                position_ms: startPositionMs
             })
         });
-        
+
         console.log("Track URI:", trackUri);
         console.log("Device ID:", deviceId);
-        //console.log("transferred playback ownership");
-        console.log("\nStatus: ", response.status);
-        const body=await response.text();
-        console.log("resposnse : ",body);
+        console.log("Status:", response.status);
+
+        const body = await response.text();
+        console.log("response:", body);
+
         if (response.status === 204) {
-            console.log(`▶Track command sent successfully: ${trackUri}`);
+            console.log(`Track command sent successfully: ${trackUri}`);
             return true;
-        } else {
-            console.error(`Playback rejection status: ${response.status}`);
-            return false;
         }
+
+        console.error(`Playback rejection status: ${response.status}`);
+        return false;
     } catch (error) {
         console.error("Error executing playTrack:", error);
         return false;
     }
 }
 
-async function seekToPosition(accessToken, positionMs,deviceId) {
+async function pausePlayback(accessToken, deviceId = null) {
     try {
-        const seekUrl=`https://api.spotify.com/v1/me/player/seek?position_ms=${positionMs}&device_id=${deviceId}`;
+        let pauseUrl = "https://api.spotify.com/v1/me/player/pause";
+
+        if (deviceId) {
+            pauseUrl += `?device_id=${deviceId}`;
+        }
+
+        const response = await fetch(pauseUrl, {
+            method: "PUT",
+            headers: {
+                "Authorization": `Bearer ${accessToken}`
+            }
+        });
+
+        console.log("Pause Status:", response.status);
+        return response.ok || response.status === 204;
+    } catch (error) {
+        console.error("Error executing pausePlayback:", error);
+        return false;
+    }
+}
+
+async function seekToPosition(accessToken, positionMs, deviceId) {
+    try {
+        const seekUrl = `https://api.spotify.com/v1/me/player/seek?position_ms=${positionMs}&device_id=${deviceId}`;
         const response = await fetch(seekUrl, {
             method: "PUT",
-            headers: {"Authorization": `Bearer ${accessToken}`}
+            headers: { "Authorization": `Bearer ${accessToken}` }
         });
         console.log("Seek Status:", response.status);
+
         const responseText = await response.text();
         console.log("Seek Response:", responseText);
 
         if (response.ok) {
-            console.log(`Hook Jump Successful! Warp jumped to: ${(positionMs / 1000).toFixed(2)}s`);
+            console.log(`Hook jump successful: ${(positionMs / 1000).toFixed(2)}s`);
             return true;
-        } else {
-            console.error("Failed to execute position seek:", response.status);
-            return false;
         }
+
+        console.error("Failed to execute position seek:", response.status);
+        return false;
     } catch (error) {
         console.error("Error executing seekToPosition:", error);
         return false;
     }
 }
 
-async function getPlaylistTracks(accessToken, playlistId){
+async function getPlaylistTracks(accessToken, playlistId) {
     const url = `https://api.spotify.com/v1/playlists/${playlistId}/items`;
     console.log("Playlist ID:", playlistId);
     console.log("Token exists:", !!accessToken);
-    const response= await fetch(url,{
-        headers:{
+
+    const response = await fetch(url, {
+        headers: {
             Authorization: `Bearer ${accessToken}`
         }
     });
+
     console.log("Playlist status:", response.status);
-    const text=await response.text();
+
+    const text = await response.text();
     console.log("playlist response:", text);
-    if(!text){return null;}
+
+    if (!text) {
+        return null;
+    }
+
     return JSON.parse(text);
 }
-// Export both automation handlers so main.js can use them
+
+async function getAudioFeatures(accessToken, trackIds) {
+    const ids = [...new Set((trackIds || []).filter(Boolean))];
+    const audioFeatures = [];
+
+    for (let i = 0; i < ids.length; i += 100) {
+        const batch = ids.slice(i, i + 100);
+        const url = `https://api.spotify.com/v1/audio-features?ids=${encodeURIComponent(batch.join(","))}`;
+        const response = await fetch(url, {
+            headers: {
+                Authorization: `Bearer ${accessToken}`
+            }
+        });
+
+        const text = await response.text();
+
+        if (!response.ok) {
+            const error = new Error(`Spotify audio features request failed with ${response.status}`);
+            error.status = response.status;
+            error.body = text;
+            throw error;
+        }
+
+        const data = text ? JSON.parse(text) : {};
+        audioFeatures.push(...(Array.isArray(data.audio_features) ? data.audio_features : []));
+    }
+
+    return audioFeatures;
+}
+
+async function getArtists(accessToken, artistIds) {
+    const ids = [...new Set((artistIds || []).filter(Boolean))];
+    const artists = [];
+
+    for (let i = 0; i < ids.length; i += 50) {
+        const batch = ids.slice(i, i + 50);
+        const url = `https://api.spotify.com/v1/artists?ids=${encodeURIComponent(batch.join(","))}`;
+        const response = await fetch(url, {
+            headers: {
+                Authorization: `Bearer ${accessToken}`
+            }
+        });
+
+        const text = await response.text();
+
+        if (!response.ok) {
+            const error = new Error(`Spotify artist metadata request failed with ${response.status}`);
+            error.status = response.status;
+            error.body = text;
+            throw error;
+        }
+
+        const data = text ? JSON.parse(text) : {};
+        artists.push(...(Array.isArray(data.artists) ? data.artists : []));
+    }
+
+    return artists;
+}
+
 module.exports = {
     playTrack,
+    pausePlayback,
     seekToPosition,
-    getPlaylistTracks
+    getPlaylistTracks,
+    getAudioFeatures,
+    getArtists
 };
