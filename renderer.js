@@ -252,6 +252,34 @@ function getTrackIdFromUri(uri) {
     return parts.length ? parts[parts.length - 1] : "";
 }
 
+function getPlaylistIdFromInput(value) {
+    const input = String(value || "").trim();
+
+    if (!input) {
+        return "";
+    }
+
+    const uriMatch = input.match(/^spotify:playlist:([A-Za-z0-9]+)$/);
+
+    if (uriMatch) {
+        return uriMatch[1];
+    }
+
+    try {
+        const url = new URL(input);
+        const pathParts = url.pathname.split("/").filter(Boolean);
+        const playlistIndex = pathParts.indexOf("playlist");
+
+        if (playlistIndex >= 0 && pathParts[playlistIndex + 1]) {
+            return pathParts[playlistIndex + 1];
+        }
+    } catch (error) {
+        // Raw playlist IDs are handled below.
+    }
+
+    return input.split("?")[0];
+}
+
 function clamp(value, min = 0, max = 1) {
     return Math.min(max, Math.max(min, value));
 }
@@ -1139,12 +1167,17 @@ function commitHook(song, hookStartInput, hookEndInput) {
 }
 
 async function loadPlaylist() {
-    const playlistId = playlistInput ? playlistInput.value.trim() : "";
+    const playlistValue = playlistInput ? playlistInput.value.trim() : "";
+    const playlistId = getPlaylistIdFromInput(playlistValue);
 
     if (!playlistId) {
-        setSessionStatus("Enter a playlist ID first.", "warning");
+        setSessionStatus("Enter a playlist ID or URL first.", "warning");
         playlistInput && playlistInput.focus();
         return;
+    }
+
+    if (playlistInput && playlistValue !== playlistId) {
+        playlistInput.value = playlistId;
     }
 
     if (songList) {

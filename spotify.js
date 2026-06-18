@@ -88,26 +88,42 @@ async function seekToPosition(accessToken, positionMs, deviceId) {
 }
 
 async function getPlaylistTracks(accessToken, playlistId) {
-    const url = `https://api.spotify.com/v1/playlists/${playlistId}/items`;
+    const items = [];
+    let url = `https://api.spotify.com/v1/playlists/${playlistId}/items?limit=100`;
+
     console.log("Playlist ID:", playlistId);
     console.log("Token exists:", !!accessToken);
 
-    const response = await fetch(url, {
-        headers: {
-            Authorization: `Bearer ${accessToken}`
+    while (url) {
+        const response = await fetch(url, {
+            headers: {
+                Authorization: `Bearer ${accessToken}`
+            }
+        });
+
+        console.log("Playlist status:", response.status);
+
+        const text = await response.text();
+        console.log("playlist response:", text);
+
+        if (!text) {
+            return null;
         }
-    });
 
-    console.log("Playlist status:", response.status);
+        const page = JSON.parse(text);
 
-    const text = await response.text();
-    console.log("playlist response:", text);
+        if (!response.ok) {
+            const error = new Error(`Spotify playlist request failed with ${response.status}`);
+            error.status = response.status;
+            error.body = page;
+            throw error;
+        }
 
-    if (!text) {
-        return null;
+        items.push(...(Array.isArray(page.items) ? page.items : []));
+        url = page.next || null;
     }
 
-    return JSON.parse(text);
+    return { items };
 }
 
 async function getAudioFeatures(accessToken, trackIds) {
