@@ -23,9 +23,9 @@ function createEmptyStore() {
             updatedAt: null
         }
     };
-}
+} 
 
-function getStorePath() {
+function getStorePath() { 
     return path.join(app.getPath("userData"), "rhythm-store.json");
 }
 
@@ -495,23 +495,29 @@ async function handleCallbackUrl(url, authWindow) {
             console.log("SUCCESS! Captured raw authentication code.");
 
             // Close the pop-up window immediately to clear the UI
-            authWindow.close();
             await exchangeCodeForTokens(code);
+            authWindow.close();
+        
         }
     }
 }
 
 // New helper function to execute the secure token handshake
 async function exchangeCodeForTokens(code) {
+    console.log("ENTERED exchangeCodeForTokensssss");
     const CLIENT_ID = process.env.CLIENT_ID;
     const CLIENT_SECRET = process.env.CLIENT_SECRET;
     const REDIRECT_URI = process.env.REDIRECT_URI;
 
+    console.log("CLIENT_ID:", CLIENT_ID ? "FOUND" : "MISSING");
+console.log("CLIENT_SECRET:", CLIENT_SECRET ? "FOUND" : "MISSING");
+console.log("REDIRECT_URI:", REDIRECT_URI);
     console.log("Exchanging authentication code for functional tokens...");
 
     try {
         const tokenUrl = "https://accounts.spotify.com/api/token";        
         const credentialsBase64 = Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString("base64");
+        console.log("ABOUT TO CALL SPOTIFY TOKEN API");
         const response = await fetch(tokenUrl, {
             method: "POST",
             headers: {
@@ -524,7 +530,7 @@ async function exchangeCodeForTokens(code) {
                 redirect_uri: REDIRECT_URI
             }).toString() // Ensure it compiles cleanly to a query string
         });
-
+        console.log("SPOTIFY TOKEN API RETURNEDddddd");
         const data = await response.json();
 
         if (response.ok) {
