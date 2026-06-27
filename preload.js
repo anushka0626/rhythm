@@ -21,5 +21,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
     loadStore: () => ipcRenderer.invoke("store-load"),
     saveStore: (storePatch) => ipcRenderer.invoke("store-save", storePatch),
     exportSession: (sessionPayload) => ipcRenderer.invoke("export-session", sessionPayload),
-    importSession: () => ipcRenderer.invoke("import-session")
+    importSession: () => ipcRenderer.invoke("import-session"),
+    analyzeTrackStructure: (trackId) => ipcRenderer.invoke("analyze-track-structure", trackId),
 });

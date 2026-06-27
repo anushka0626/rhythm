@@ -1,115 +1,13 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>VibeCheck - Phase 1 Orchestrator</title>
+    <title>VibeCheck - Engine Orchestrator</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="app-shell">
-        <header class="app-header">
-            <span class="logo">VibeCheck</span>
-            <div class="badge">Session Studio</div>
-        </header>
+    <div id="root"></div>
 
-        <main class="app-container">
-            <section class="card connection-pane">
-                <h2>System Authentication</h2>
-                <button id="spotifyBtn" class="btn-spotify">
-                    Connect Spotify Account
-                </button>
-                <div id="status" class="status-box">
-                    <span class="dot pulse-gray"></span> Not Connected
-                </div>
-
-                <hr class="separator" />
-
-                <h2>Import Playlist</h2>
-                <p>Paste a Spotify playlist URL, URI, or ID to scan and extract audio tracks.</p>
-                <div class="input-group">
-                    <input type="text" id="playlistInput" placeholder="Paste Spotify playlist URL or ID..." />
-                    <button id="loadPlaylistBtn" class="btn-primary">Load Tracks</button>
-                </div>
-
-                <h3>Available Tracks</h3>
-                <ul id="songList" class="scrollable-list"></ul>
-            </section>
-
-            <section class="card engine-pane">
-                <div class="pane-heading">
-                    <div>
-                        <h2>Active Session Queue</h2>
-                        <p>Tracks queued up for continuous playback execution.</p>
-                    </div>
-                    <div id="sessionStatus" class="session-status">Session data ready.</div>
-                </div>
-
-                <div class="session-controls">
-                    <input type="text" id="sessionNameInput" placeholder="Session name" />
-                    <button id="saveSessionBtn" class="btn-secondary" title="Save session (Ctrl+S)">Save</button>
-                    <select id="savedSessionSelect" title="Saved sessions">
-                        <option value="">Saved sessions</option>
-                    </select>
-                    <button id="loadSessionBtn" class="btn-secondary" title="Load selected session">Load</button>
-                    <button id="deleteSessionBtn" class="btn-secondary danger" title="Delete selected session">Delete</button>
-                    <button id="exportSessionBtn" class="btn-secondary" title="Export session (Ctrl+E)">Export</button>
-                    <button id="importSessionBtn" class="btn-secondary" title="Import session (Ctrl+O)">Import</button>
-                </div>
-
-                <div class="phase2-panel">
-                    <div class="phase2-heading">
-                        <h3>Phase 2 Intelligence</h3>
-                        <div id="phase2Status" class="session-status">Mood engine ready.</div>
-                    </div>
-                    <div class="phase2-controls">
-                        <select id="moodPresetSelect" title="Mood preset"></select>
-                        <button id="applyMoodBtn" class="btn-secondary">Apply Mood</button>
-                        <button id="analyzeQueueBtn" class="btn-secondary">Analyze Queue</button>
-                        <button id="smartOrderBtn" class="btn-secondary">Smart Order</button>
-                        <select id="templateSelect" title="Session template"></select>
-                        <button id="applyTemplateBtn" class="btn-secondary">Apply Template</button>
-                    </div>
-                    <div class="order-comparison">
-                        <div class="order-column">
-                            <h4>Current Playlist Order</h4>
-                            <ol id="currentOrderList" class="order-list"></ol>
-                        </div>
-                        <div class="order-column recommended">
-                            <h4>Recommended Order</h4>
-                            <ol id="recommendedOrderList" class="order-list"></ol>
-                        </div>
-                    </div>
-                    <div id="orderInsight" class="order-insight">Queue tracks to compare ordering.</div>
-                    <ul id="transitionList" class="transition-list"></ul>
-                </div>
-
-                <ul id="queueList" class="scrollable-list queue-list"></ul>
-
-                <div class="playback-panel">
-                    <div class="playback-meta">
-                        <span id="currentTrackName">No active track</span>
-                        <span id="playbackTime">0s / 0s</span>
-                    </div>
-                    <div class="progress-track">
-                        <div id="playbackProgress" class="progress-fill"></div>
-                    </div>
-                    <div class="playback-controls">
-                        <button id="startSessionBtn" class="btn-session" title="Start session (Ctrl+Enter)">
-                            Start Session
-                        </button>
-                        <button id="pauseSessionBtn" class="btn-secondary" title="Pause or resume session">Pause</button>
-                        <button id="skipTrackBtn" class="btn-secondary" title="Skip current hook">Skip</button>
-                        <button id="stopSessionBtn" class="btn-secondary danger" title="Stop session">Stop</button>
-                        <label class="loop-toggle">
-                            <input type="checkbox" id="loopSessionToggle" />
-                            <span>Loop</span>
-                        </label>
-                    </div>
-                </div>
-            </section>
-        </main>
-    </div>
-
-    <script src="renderer.js"></script>
+    <script type="module" src="/renderer.jsx"></script>
 </body>
 </html>

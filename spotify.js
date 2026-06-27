@@ -184,11 +184,28 @@ async function getArtists(accessToken, artistIds) {
     return artists;
 }
 
+async function getAudioAnalysis(accessToken, trackId) {
+    try{
+        const url= `https://api.spotify.com/v1/audio-analysis/${trackId}`;
+        const response= await fetch(url,{
+            headers: {Authorization: `Bearer ${accessToken}`}
+        });
+        if(!response.ok){
+            throw new Error(`Spotify audio analysis failed with status ${response.status}`);
+        }
+        const text=await response.text();
+        return text ? JSON.parse(text) : null;
+    } catch(error){
+        console.error("error executing getAudioAnalysis: ", error);
+        throw error;
+    }
+};
 module.exports = {
     playTrack,
     pausePlayback,
     seekToPosition,
     getPlaylistTracks,
     getAudioFeatures,
-    getArtists
+    getArtists,
+    getAudioAnalysis
 };
