@@ -200,6 +200,7 @@ function createWindow() {
 
     if (process.env.VITE_DEV_SERVER_URL) {
         mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
+        mainWinow.webContents.openDevTools();
     } else {
         mainWindow.loadFile(path.join(__dirname, "dist/index.html"));
     }
@@ -271,24 +272,47 @@ ipcMain.handle("import-session", async () => {
     };
 });
 
-// Programmatic Audio Structure Analysis via child Python process execution
 ipcMain.handle("analyze-track-structure", async (event, previewUrl) => {
-    return new Promise((resolve) => {
+    return new Promise(async (resolve) => {
         try {
             const { execFile } = require("child_process");
+            const os = require("os");
+            const crypto = require("crypto");
+
             if (!previewUrl || !previewUrl.startsWith("http")) {
-                return resolve({ ok: false, error: "No valid preview URL available." });
+                return resolve({ ok: false, error: "No valid 30-second preview URL hosted on Spotify CDN." });
             }
-            const scriptPath = path.join(__dirname, "analyzer.py");
-            execFile("python3", [scriptPath, previewUrl], (error, stdout, stderr) => {
+
+            // Create a temporary file path in /tmp for the audio slice download
+            const tempFileName = `rhythm-${crypto.randomBytes(6).toString("hex")}.mp3`;
+            const tempFilePath = path.join(os.tmpdir(), tempFileName);
+
+            console.log(`Downloading stream fragment for intelligence parsing: ${previewUrl}`);
+            
+            // Stream download the audio preview file via standard node fetch
+            const response = await fetch(previewUrl);
+            if (!response.ok) throw new Error("Failed downloading segment from audio stream provider.");
+            
+            const buffer = Buffer.from(await response.arrayBuffer());
+            await fs.promises.writeFile(tempFilePath, buffer);
+
+            const scriptPath = path.join(app.getAppPath(), "analyzer.py");
+            
+            // Execute local DSP processing script against downloaded file
+            execFile("python3", [scriptPath, tempFilePath], async (error, stdout, stderr) => {
+                // Clean up the temporary clip path immediately after calculation finishes
+                try { await fs.promises.unlink(tempFilePath); } catch (e) {}
+
                 if (error) {
-                    console.error("Python engine failed:", stderr || error.message);
+                    console.error("Python DSP pipeline crash:", stderr || error.message);
                     return resolve({ ok: false, error: "Audio engine execution failed" });
                 }
+
                 try {
                     const output = JSON.parse(stdout.trim());
                     resolve(output);
                 } catch (parseError) {
+                    console.error("Malformed child engine output:", stdout);
                     resolve({ ok: false, error: "Failed to read engine output matrix" });
                 }
             });

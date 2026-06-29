@@ -9,67 +9,87 @@ export const SessionControls = () => {
         savedSessions,
         loadSavedSessionProfile,
         handleExportClick,
-        handleImportClick
+        handleImportClick,
+        isConnected,
+        isConnecting,
+        triggerSpotifyLogin
     } = useApp();
 
     const historicalKeys = Object.keys(savedSessions || {});
 
     return (
-        <div className="card session-manager" style={{ padding: '15px', marginBottom: '20px' }}>
-            <div style={{ display: 'flex', gap: '15px', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'space-between' }}>
-                
-                {/* Session Naming Input Deck */}
-                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flex: 1, minWidth: '280px' }}>
-                    <label style={{ fontWeight: 'bold', fontSize: '0.9rem', color: '#aaa' }}>Orchestration Name:</label>
+        <div className="studio-card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {/* Top Row: System Identity and Connection Bridge Status */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1f2026', paddingBottom: '14px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span style={{ fontSize: '1.4rem', fontWeight: 800, color: '#fff', letterSpacing: '-0.5px' }}>rhythm</span>
+                    <div style={{ height: '4px', width: '4px', backgroundColor: '#3a3b40', borderRadius: '50%' }}></div>
+                    <span style={{ fontSize: '0.85rem', color: '#6a6b70', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Studio Node</span>
+                </div>
+
+                {/* Spotify Authentication Action Vector - Placed Natively at Header Line */}
+                <div>
+                    {!isConnected ? (
+                        <button 
+                            className="btn-studio primary" 
+                            onClick={triggerSpotifyLogin} 
+                            disabled={isConnecting}
+                            style={{ padding: '8px 14px', fontSize: '0.8rem' }}
+                        >
+                            {isConnecting ? "Connecting..." : "🔌 Connect Spotify"}
+                        </button>
+                    ) : (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(29, 185, 84, 0.08)', padding: '6px 12px', borderRadius: '20px', border: '1px solid rgba(29, 185, 84, 0.2)' }}>
+                            <div style={{ height: '6px', width: '6px', backgroundColor: '#1db954', borderRadius: '50%' }}></div>
+                            <span style={{ color: '#1db954', fontSize: '0.8rem', fontWeight: 600 }}>Spotify Connected</span>
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* Middle Row: Naming Inputs and Storage Actions */}
+            <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flex: 1, minWidth: '280px' }}>
                     <input 
                         type="text" 
+                        className="studio-input"
                         value={activeSessionName}
                         onChange={(e) => setActiveSessionName(e.target.value)}
-                        style={{
-                            flex: 1,
-                            padding: '8px',
-                            backgroundColor: '#181818',
-                            border: '1px solid #282828',
-                            borderRadius: '4px',
-                            color: '#fff',
-                            fontWeight: 'bold'
-                        }}
+                        placeholder="Name your current session..."
+                        style={{ fontWeight: 600, flex: 1 }}
                     />
-                    <button className="btn-secondary" onClick={saveCurrentSessionAsPreset} style={{ cursor: 'pointer', padding: '8px 12px' }}>
+                    <button className="btn-studio" onClick={saveCurrentSessionAsPreset}>
                         💾 Save
                     </button>
                 </div>
 
-                {/* Portability Controls Block */}
-                <div style={{ display: 'flex', gap: '10px' }}>
-                    <button className="btn-secondary" onClick={handleImportClick} style={{ cursor: 'pointer' }}>
-                        📥 Import File
-                    </button>
-                    <button className="btn-secondary" onClick={handleExportClick} style={{ cursor: 'pointer' }}>
-                        📤 Export File
-                    </button>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                    <button className="btn-studio" onClick={handleImportClick}>📥 Import</button>
+                    <button className="btn-studio" onClick={handleExportClick}>📤 Export</button>
                 </div>
             </div>
 
-            {/* Past Profiles Quick Loader Dropdown Bar */}
+            {/* Bottom Row: Quick History Switcher Dropdown */}
             {historicalKeys.length > 0 && (
-                <div style={{ marginTop: '12px', borderTop: '1px solid #222', paddingTop: '10px', display: 'flex', gap: '10px', alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.85rem', color: '#888' }}>Quick Switch Session History:</span>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', background: '#1a1b20', padding: '8px 12px', borderRadius: '6px' }}>
+                    <span style={{ fontSize: '0.75rem', color: '#6a6b70', fontWeight: 600 }}>SWITCH SESSION:</span>
                     <select 
                         onChange={(e) => loadSavedSessionProfile(e.target.value)}
                         value={activeSessionName}
                         style={{
                             padding: '4px 8px',
-                            backgroundColor: '#181818',
-                            border: '1px solid #282828',
-                            borderRadius: '4px',
-                            color: '#1DB954',
-                            cursor: 'pointer'
+                            backgroundColor: 'transparent',
+                            border: 'none',
+                            color: '#1db954',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            outline: 'none',
+                            fontSize: '0.85rem'
                         }}
                     >
-                        <option value="" disabled>-- Choose a saved session profile --</option>
+                        <option value="" disabled>Choose past profile...</option>
                         {historicalKeys.map(key => (
-                            <option key={key} value={key}>{key}</option>
+                            <option key={key} value={key} style={{ backgroundColor: '#1a1b20', color: '#fff' }}>{key}</option>
                         ))}
                     </select>
                 </div>

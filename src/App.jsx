@@ -325,6 +325,7 @@ export const AppProvider = ({ children }) => {
                         ...track,
                         hookStart: calculatedStart,
                         hookEnd: calculatedEnd,
+                        analysis:response.analysis,
                         structuralSource: "local-audio-analysis"
                     };
                 }

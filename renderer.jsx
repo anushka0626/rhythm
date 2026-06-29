@@ -11,34 +11,30 @@ const rootElement = document.getElementById('root');
 if (rootElement) {
     ReactDOM.createRoot(rootElement).render(
         <AppProvider>
-            <div className="app-shell" style={{ display: 'flex', flexDirection: 'column', height: '100vh', boxSizing: 'border-box' }}>
-                <header className="app-header" style={{ flexShrink: 0 }}>
-                    <span className="logo">rhythm</span>
-                    <div className="badge">Session Studio</div>
-                </header>
+            <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '30px 20px' }}>
                 
-                {/* Unified grid canvas layout containing balanced work columns */}
-                <main className="app-container" style={{ display: 'flex', gap: '20px', flex: 1, padding: '20px', overflow: 'hidden' }}>
+                {/* Clean Studio Global Header Control Bar */}
+                <SessionControls />
+                
+                {/* Two-Column Structured Studio Workspace */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '24px', marginTop: '24px', alignItems: 'start' }}>
                     
-                    {/* Left Column Stack: Queue Logistics Management */}
-                    <div className="left-deck" style={{ flex: 1.2, display: 'flex', flexDirection: 'column', gap: '20px', overflow: 'hidden' }}>
-                        <SessionControls />
-                        <div className="card engine-pane" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                            <h3 style={{ margin: '0 0 10px 0', fontSize: '1rem', color: '#aaa' }}>Active Mix Queue</h3>
-                            <QueueList />
+                    {/* Left Workplane Deck: Interactive Sequence Queue */}
+                    <div className="studio-card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 600, letterSpacing: '0.3px' }}>Active Mix Queue</h3>
+                            <span style={{ fontSize: '0.8rem', color: '#6a6b70', fontWeight: 500 }}>Sequence Stack</span>
                         </div>
+                        <QueueList />
                     </div>
                     
-                    {/* Right Column Stack: Media Stream Controls */}
-                    <div className="right-deck" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                        <PlaylistImport />
-                        <div className="card engine-pane" style={{ flex: 1 }}>
-                            <h3 style={{ margin: '0 0 10px 0', fontSize: '1rem', color: '#aaa' }}>Control Console</h3>
-                            <PlaybackPanel />
-                        </div>
+                    {/* Right Workplane Deck: Ingestion Bar & Core Playback Control Deck */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                        <PlaylistImport /> 
+                        <PlaybackPanel />
                     </div>
 
-                </main>
+                </div>
             </div>
         </AppProvider>
     );

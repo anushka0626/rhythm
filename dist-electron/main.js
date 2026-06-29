@@ -584,8 +584,10 @@ function createWindow() {
 			preload: path.join(__dirname, "preload.js")
 		}
 	});
-	if (process.env.VITE_DEV_SERVER_URL) mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
-	else mainWindow.loadFile(path.join(__dirname, "dist/index.html"));
+	if (process.env.VITE_DEV_SERVER_URL) {
+		mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
+		mainWinow.webContents.openDevTools();
+	} else mainWindow.loadFile(path.join(__dirname, "dist/index.html"));
 }
 app.whenReady().then(() => {
 	createWindow();
@@ -651,16 +653,28 @@ ipcMain.handle("import-session", async () => {
 	};
 });
 ipcMain.handle("analyze-track-structure", async (event, previewUrl) => {
-	return new Promise((resolve) => {
+	return new Promise(async (resolve) => {
 		try {
 			const { execFile } = require("child_process");
+			const os = require("os");
+			const crypto = require("crypto");
 			if (!previewUrl || !previewUrl.startsWith("http")) return resolve({
 				ok: false,
-				error: "No valid preview URL available."
+				error: "No valid 30-second preview URL hosted on Spotify CDN."
 			});
-			execFile("python3", [path.join(__dirname, "analyzer.py"), previewUrl], (error, stdout, stderr) => {
+			const tempFileName = `rhythm-${crypto.randomBytes(6).toString("hex")}.mp3`;
+			const tempFilePath = path.join(os.tmpdir(), tempFileName);
+			console.log(`Downloading stream fragment for intelligence parsing: ${previewUrl}`);
+			const response = await fetch(previewUrl);
+			if (!response.ok) throw new Error("Failed downloading segment from audio stream provider.");
+			const buffer = Buffer.from(await response.arrayBuffer());
+			await fs.promises.writeFile(tempFilePath, buffer);
+			execFile("python3", [path.join(app.getAppPath(), "analyzer.py"), tempFilePath], async (error, stdout, stderr) => {
+				try {
+					await fs.promises.unlink(tempFilePath);
+				} catch (e) {}
 				if (error) {
-					console.error("Python engine failed:", stderr || error.message);
+					console.error("Python DSP pipeline crash:", stderr || error.message);
 					return resolve({
 						ok: false,
 						error: "Audio engine execution failed"
@@ -669,6 +683,7 @@ ipcMain.handle("analyze-track-structure", async (event, previewUrl) => {
 				try {
 					resolve(JSON.parse(stdout.trim()));
 				} catch (parseError) {
+					console.error("Malformed child engine output:", stdout);
 					resolve({
 						ok: false,
 						error: "Failed to read engine output matrix"
